@@ -42,6 +42,9 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             Dim loConsulta As New StringBuilder()
 
             loConsulta.AppendLine("")
+            loConsulta.AppendLine("DECLARE @lcMonedaBase CHAR(10) = " & goServicios.mObtenerCampoFormatoSQL(goMoneda.pcCodigoMonedaBase) & ";")
+            loConsulta.AppendLine("DECLARE @lcMonedaAdicional CHAR(10) = " & goServicios.mObtenerCampoFormatoSQL(goMoneda.pcCodigoMonedaAdicional) & ";")
+            loConsulta.AppendLine("")
             loConsulta.AppendLine("SELECT      Facturas.Cod_Cli                                        AS Cod_Cli, ")
             loConsulta.AppendLine("            (CASE WHEN (Facturas.Nom_Cli = '') ")
             loConsulta.AppendLine("                THEN Clientes.Nom_Cli ELSE Facturas.Nom_Cli END)    AS Nom_Cli, ")
@@ -138,6 +141,26 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             Dim lnDecimalesParaCantidad As Integer = goOpciones.pnDecimalesParaCantidad
             Dim lnDecimalesParaMonto As Integer = goOpciones.pnDecimalesParaMonto
             Dim lnDecimalesParaPorcentaje As Integer = goOpciones.pnDecimalesParaPorcentaje
+
+            '****************************************************************************
+            ' Validación de moneda del documento
+            '****************************************************************************
+            Dim lcMoneda As String = ""
+            If loFactura.Table.Columns.Contains("Cod_Mon") Then
+                lcMoneda = CStr(loFactura("Cod_Mon")).Trim()
+            End If
+            ' Obtener la moneda desde la vista o parámetro
+            Dim lcMonedaVista As String = Me.Request.QueryString("Moneda")
+            If Not String.IsNullOrEmpty(lcMonedaVista) Then
+                lcMoneda = lcMonedaVista.Trim()
+            End If
+            If lcMoneda.ToUpper() = "USD" Then
+                Me.WbcAdministradorMensajeModal.mMostrarMensajeModal("Error", _
+                    "No se permite imprimir facturas cuya moneda del sistema sea USD.", _
+                    vis3Controles.wbcAdministradorMensajeModal.enumTipoMensaje.KN_Error, _
+                    "500px", "250px")
+                Return
+            End If
 
             '****************************************************************************
             ' Valida que la factura no haya sido impresa anteriormente, que esté confirmada, 
