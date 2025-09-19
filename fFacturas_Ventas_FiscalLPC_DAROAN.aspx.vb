@@ -79,6 +79,7 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             loConsulta.AppendLine("            Facturas.Por_Rec1                                       AS Por_Rec, ")
             loConsulta.AppendLine("            Facturas.Mon_Rec1                                       AS Mon_Rec, ")
             loConsulta.AppendLine("            Facturas.Cod_For                                        AS Cod_For, ")
+            loConsulta.AppendLine("            Facturas.Cod_Mon                                        AS Cod_Mon, ")
             loConsulta.AppendLine("            Formas_Pagos.Nom_For                                    AS Nom_For, ")
             loConsulta.AppendLine("            Facturas.Cod_Ven                                        AS Cod_Ven, ")
             loConsulta.AppendLine("            Facturas.Comentario                                     AS Comentario_Factura,")
@@ -155,9 +156,9 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
                 lcMoneda = lcMonedaVista.Trim()
             End If
             If lcMoneda.ToUpper() = "USD" Then
-                Me.WbcAdministradorMensajeModal.mMostrarMensajeModal("Error", _
-                    "No se permite imprimir facturas cuya moneda del sistema sea USD.", _
-                    vis3Controles.wbcAdministradorMensajeModal.enumTipoMensaje.KN_Error, _
+                Me.WbcAdministradorMensajeModal.mMostrarMensajeModal("Error",
+                    "No se permite imprimir facturas con la moneda USD.",
+                    vis3Controles.wbcAdministradorMensajeModal.enumTipoMensaje.KN_Error,
                     "500px", "250px")
                 Return
             End If
