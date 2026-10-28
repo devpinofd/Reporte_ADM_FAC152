@@ -42,9 +42,6 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             Dim loConsulta As New StringBuilder()
 
             loConsulta.AppendLine("")
-            loConsulta.AppendLine("DECLARE @lcMonedaBase CHAR(10) = " & goServicios.mObtenerCampoFormatoSQL(goMoneda.pcCodigoMonedaBase) & ";")
-            loConsulta.AppendLine("DECLARE @lcMonedaAdicional CHAR(10) = " & goServicios.mObtenerCampoFormatoSQL(goMoneda.pcCodigoMonedaAdicional) & ";")
-            loConsulta.AppendLine("")
             loConsulta.AppendLine("SELECT      Facturas.Cod_Cli                                        AS Cod_Cli, ")
             loConsulta.AppendLine("            (CASE WHEN (Facturas.Nom_Cli = '') ")
             loConsulta.AppendLine("                THEN Clientes.Nom_Cli ELSE Facturas.Nom_Cli END)    AS Nom_Cli, ")
@@ -64,6 +61,7 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             loConsulta.AppendLine("            Facturas.Dir_Fis                                        AS Dir_Gen, ")
             loConsulta.AppendLine("            Facturas.Telefonos                                      AS Tel_Gen, ")
             loConsulta.AppendLine("            Facturas.Documento                                      AS Documento, ")
+            loConsulta.AppendLine("            Facturas.Cod_Mon                                       AS Moneda, ")
             loConsulta.AppendLine("            Facturas.Status                                         AS Status, ")
             loConsulta.AppendLine("            Facturas.Fec_Ini                                        AS Fec_Ini, ")
             loConsulta.AppendLine("            Facturas.Fec_Fin                                        AS Fec_Fin, ")
@@ -71,6 +69,12 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             loConsulta.AppendLine("            Facturas.Mon_Imp1                                       AS Mon_Imp1, ")
             loConsulta.AppendLine("            Facturas.Por_Imp1                                       AS Por_Imp1, ")
             loConsulta.AppendLine("            Facturas.Mon_Net                                        AS Mon_Net, ")
+            loConsulta.AppendLine("            Facturas.Tasa                                          AS Tasa, ")
+            loConsulta.AppendLine("            (SELECT TOP 1 Renglones_Monedas.Tasa ")
+            loConsulta.AppendLine("             FROM Renglones_Monedas ")
+            loConsulta.AppendLine("             WHERE Renglones_Monedas.Cod_Mon = 'VEB' ")
+            loConsulta.AppendLine("               AND Renglones_Monedas.Fecha <= GETDATE() ")
+            loConsulta.AppendLine("             ORDER BY Renglones_Monedas.Fecha DESC, Renglones_Monedas.Registro DESC) AS Tasa_Dia, ")
             loConsulta.AppendLine("            ROUND(Facturas.Mon_Net * Facturas.Tasa, 2)              AS Mon_Net_MP, ")
             loConsulta.AppendLine("            'MONTO (USD) ' + Format(ROUND(Facturas.Mon_Net * Facturas.Tasa, 2), 'N', 'es-VE')              AS Comentario, ")
             loConsulta.AppendLine("            Facturas.Por_Des1                                       AS Por_Des, ")
@@ -79,7 +83,6 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             loConsulta.AppendLine("            Facturas.Por_Rec1                                       AS Por_Rec, ")
             loConsulta.AppendLine("            Facturas.Mon_Rec1                                       AS Mon_Rec, ")
             loConsulta.AppendLine("            Facturas.Cod_For                                        AS Cod_For, ")
-            loConsulta.AppendLine("            Facturas.Cod_Mon                                        AS Cod_Mon, ")
             loConsulta.AppendLine("            Formas_Pagos.Nom_For                                    AS Nom_For, ")
             loConsulta.AppendLine("            Facturas.Cod_Ven                                        AS Cod_Ven, ")
             loConsulta.AppendLine("            Facturas.Comentario                                     AS Comentario_Factura,")
@@ -144,26 +147,6 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             Dim lnDecimalesParaPorcentaje As Integer = goOpciones.pnDecimalesParaPorcentaje
 
             '****************************************************************************
-            ' Validación de moneda del documento
-            '****************************************************************************
-            Dim lcMoneda As String = ""
-            If loFactura.Table.Columns.Contains("Cod_Mon") Then
-                lcMoneda = CStr(loFactura("Cod_Mon")).Trim()
-            End If
-            ' Obtener la moneda desde la vista o parámetro
-            Dim lcMonedaVista As String = Me.Request.QueryString("Moneda")
-            If Not String.IsNullOrEmpty(lcMonedaVista) Then
-                lcMoneda = lcMonedaVista.Trim()
-            End If
-            If lcMoneda.ToUpper() = "USD" Then
-                Me.WbcAdministradorMensajeModal.mMostrarMensajeModal("Error",
-                    "No se permite imprimir facturas con la moneda USD.",
-                    vis3Controles.wbcAdministradorMensajeModal.enumTipoMensaje.KN_Error,
-                    "500px", "250px")
-                Return
-            End If
-
-            '****************************************************************************
             ' Valida que la factura no haya sido impresa anteriormente, que esté confirmada, 
             ' y que tenga monto mayor a cero.
             '****************************************************************************
@@ -172,6 +155,39 @@ Partial Class fFacturas_Ventas_FiscalLPC_DAROAN
             Dim lcFiscal2 As String = CStr(loFactura("Fiscal2")).Trim()
             Dim lcFiscal3 As String = CStr(loFactura("Fiscal3")).Trim()
             Dim lcFiscal4 As String = CStr(loFactura("Fiscal4")).Trim()
+            Dim lcMoneda As String = Convert.ToString(loFactura("Moneda")).Trim()
+
+            If Not String.Equals(lcMoneda, "VEB", StringComparison.OrdinalIgnoreCase) Then
+                Me.WbcAdministradorMensajeModal.mMostrarMensajeModal("Advertencia",
+                                          "La Factura de Venta " & lcDocumento & " no puede imprimirse porque su moneda es '" & lcMoneda & "'. " &
+                                          "Solo se pueden imprimir facturas fiscales cuya moneda sea 'VEB'.",
+                                           vis3Controles.wbcAdministradorMensajeModal.enumTipoMensaje.KN_Advertencia,
+                                           "500px", "250px")
+                Return
+            End If
+
+            If String.Equals(lcMoneda, "VEB", StringComparison.OrdinalIgnoreCase) Then
+                Dim lnTasaDocumento As Decimal = CDec(loFactura("Tasa"))
+
+                If IsDBNull(loFactura("Tasa_Dia")) Then
+                    Me.WbcAdministradorMensajeModal.mMostrarMensajeModal("Advertencia",
+                                              "No existe una tasa vigente para VEB en la tabla Renglones_Monedas. La factura no puede imprimirse.",
+                                               vis3Controles.wbcAdministradorMensajeModal.enumTipoMensaje.KN_Advertencia,
+                                               "500px", "250px")
+                    Return
+                End If
+
+                Dim lnTasaDia As Decimal = CDec(loFactura("Tasa_Dia"))
+
+                If lnTasaDocumento <> lnTasaDia Then
+                    Me.WbcAdministradorMensajeModal.mMostrarMensajeModal("Advertencia",
+                                              "La Factura de Venta " & lcDocumento & " no puede imprimirse porque la tasa del documento (" &
+                                              lnTasaDocumento.ToString() & ") difiere de la tasa del día (" & lnTasaDia.ToString() & ").",
+                                               vis3Controles.wbcAdministradorMensajeModal.enumTipoMensaje.KN_Advertencia,
+                                               "500px", "250px")
+                    Return
+                End If
+            End If
 
             If (lcFiscal1 > "") OrElse (lcFiscal2 > "") OrElse (lcFiscal3 > "") OrElse (lcFiscal4 > "") Then
                 Me.WbcAdministradorMensajeModal.mMostrarMensajeModal("Advertencia",

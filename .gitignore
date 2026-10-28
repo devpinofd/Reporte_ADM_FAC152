@@ -1,0 +1,9 @@
+# Solo incluir codigo ASPX/VB y esta configuracion.
+*
+!*/
+!*.aspx
+!*.vb
+!/.gitignore
+
+# Excluir archivos de Visual Studio, incluso si contienen ASPX/VB.
+.vs/
